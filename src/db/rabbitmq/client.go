@@ -3,6 +3,9 @@ package rabbitmq
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
+	"reflect"
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
@@ -114,61 +117,112 @@ func (c *Client) publish(queue string, body []byte) error {
 	)
 }
 
-func (c *Client) ConsumeWithMiddleware(queue string, handler func(context.Context, interface{}) error, target interface{}, middlewares ...Middleware) error {
-	_, err := c.conn.Channel.QueueDeclare(
-		queue,
-		true,
-		false,
-		false,
-		false,
-		amqp091.Table{
-			"x-dead-letter-exchange": c.config.DeadLetterExchange,
-		},
-	)
-	if err != nil {
-		return err
-	}
+func (c *Client) ConsumeWithMiddleware(ctx context.Context, queue string, handler func(context.Context, interface{}) error, target interface{},
+    middlewares ...Middleware) error {
+    declareQueue := func() error {
+        _, err := c.conn.Channel.QueueDeclare(
+            queue,
+            true,
+            false,
+            false,
+            false,
+            amqp091.Table{
+                "x-dead-letter-exchange": c.config.DeadLetterExchange,
+            },
+        )
+        return err
+    }
 
-	msgs, err := c.conn.Channel.Consume(
-		queue,
-		"",
-		false, // Manual ack
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
+    if err := declareQueue(); err != nil {
+        return fmt.Errorf("failed to declare queue %s: %w", queue, err)
+    }
 
-	go func() {
-		for msg := range msgs {
-			ctx := context.Background()
-			var data interface{}
-			if err := json.Unmarshal(msg.Body, &data); err != nil {
-				msg.Nack(false, false)
-				continue
-			}
+    // Retry loop for consumer startup
+    var msgs <-chan amqp091.Delivery
+    var err error
+    for retries := 0; retries < 5; retries++ {
+        msgs, err = c.conn.Channel.Consume(
+            queue,
+            "",
+            false, // Manual ack
+            false,
+            false,
+            false,
+            nil,
+        )
+        if err == nil {
+            break
+        }
+        log.Printf("[Worker] Failed to consume queue %s: %v (retrying in %ds)", queue, err, retries+1)
+        time.Sleep(time.Duration(retries+1) * time.Second)
+    }
+    if err != nil {
+        return fmt.Errorf("failed to consume queue %s after retries: %w", queue, err)
+    }
 
-			for _, mw := range middlewares {
-				if err := mw(ctx, queue, msg.Body); err != nil {
-					msg.Nack(false, true)
-					continue
-				}
-			}
+    go func() {
+        log.Printf("[Worker] Started consumer for queue: %s", queue)
 
-			if err := handler(ctx, data); err != nil {
-				msg.Nack(false, true)
-				continue
-			}
+        for {
+            select {
+            case <-ctx.Done():
+                log.Printf("[Worker] Stopping consumer for queue: %s", queue)
+                return
+            case msg, ok := <-msgs:
+                if !ok {
+                    log.Printf("[Worker] Channel closed for queue: %s", queue)
+                    return
+                }
 
-			msg.Ack(false)
-		}
-	}()
+                log.Printf("[Worker] Received message from %s", queue)
 
-	return nil
+                // Create a new instance of the target type
+                data := reflect.New(reflect.TypeOf(target).Elem()).Interface()
+                if err := json.Unmarshal(msg.Body, data); err != nil {
+                    log.Printf("[Worker] JSON unmarshal failed: %v", err)
+                    msg.Nack(false, false) // send to DLX
+                    continue
+                }
+
+                // Middleware execution
+                for _, mw := range middlewares {
+                    if err := mw(ctx, queue, msg.Body); err != nil {
+                        log.Printf("[Worker] Middleware failed: %v", err)
+                        msg.Nack(false, true) // requeue
+                        continue
+                    }
+                }
+
+                // Handler execution with retry
+                const maxHandlerRetries = 3
+                var handlerErr error
+                for attempt := 1; attempt <= maxHandlerRetries; attempt++ {
+                    handlerErr = handler(ctx, data)
+                    if handlerErr == nil {
+                        break
+                    }
+                    log.Printf("[Worker] Handler failed (attempt %d/%d): %v", attempt, maxHandlerRetries, handlerErr)
+                    time.Sleep(time.Second * time.Duration(attempt)) // backoff
+                }
+
+                if handlerErr != nil {
+                    msg.Nack(false, true) // requeue
+                    continue
+                }
+
+                // Ack
+                if err := msg.Ack(false); err != nil {
+                    log.Printf("[Worker] Failed to ack message: %v", err)
+                } else {
+                    log.Printf("[Worker] Message processed and acked")
+                }
+            }
+        }
+    }()
+
+    return nil
 }
+
 
 func (c *Client) retryOperation(ctx context.Context, operation func() error) error {
 	var lastErr error
