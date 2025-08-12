@@ -222,6 +222,7 @@ func (c *Client) ConsumeWithMiddleware(ctx context.Context, queue string, handle
 
 	return nil
 }
+
 func (c *Client) retryOperation(ctx context.Context, operation func() error) error {
 	var lastErr error
 	for i := 0; i < c.config.MaxRetries; i++ {
