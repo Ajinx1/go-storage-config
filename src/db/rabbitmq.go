@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/you/go-storage-config/src/db/rabbitmq"
+	"go-storage-config/src/db/rabbitmq"
 )
 
 // var RabbitClient *rabbitmq.Client

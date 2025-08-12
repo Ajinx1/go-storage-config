@@ -3,9 +3,9 @@ package db
 import (
 	"errors"
 
-	"github.com/you/go-storage-config/src/db/postgres"
-	"github.com/you/go-storage-config/src/db/sqlserver"
-	"github.com/you/go-storage-config/src/utils"
+	"go-storage-config/src/db/postgres"
+	"go-storage-config/src/db/sqlserver"
+	"go-storage-config/src/utils"
 
 	"gorm.io/gorm"
 )
