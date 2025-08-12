@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 
-	rdb "go-storage-config/src/db/redis"
+	rdb "github.com/Ajinx1/go-storage-config/src/db/redis"
 )
 
 func InitRedis(theConfig rdb.RedisConfig) (*rdb.Client, error) {

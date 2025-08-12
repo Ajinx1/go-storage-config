@@ -1,4 +1,4 @@
-module go-storage-config
+module github.com/Ajinx1/go-storage-config
 
 go 1.23.0
 
