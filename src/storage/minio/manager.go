@@ -11,6 +11,25 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
+func GetByURL(objectName string) (string, error) {
+	if client == nil {
+		return "", errors.New("MinIO client not initialized")
+	}
+
+	object, err := client.GetObject(context.Background(), getBucket(), objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return "", err
+	}
+	defer object.Close()
+
+	content, err := io.ReadAll(object)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}
+
 func Upload(input UploadInput) (string, error) {
 	if client == nil {
 		return "", errors.New("MinIO client not initialized")
@@ -91,3 +110,4 @@ func UploadFile(file multipart.File, objectName, contentType string) (string, er
 
 	return Upload(input)
 }
+
