@@ -2,6 +2,8 @@ package rabbitmq
 
 import (
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/rabbitmq/amqp091-go"
 )
@@ -14,7 +16,9 @@ type RabbitConn struct {
 func ConnectFromEnv(cfg RabbitMQConfig) (*RabbitConn, error) {
 	config := LoadRabbitMQConfig(cfg)
 
-	conn, err := amqp091.Dial(config.URL)
+	conn, err := amqp091.DialConfig(config.URL, amqp091.Config{
+		Heartbeat: 10 * time.Second,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
@@ -36,12 +40,28 @@ func ConnectFromEnv(cfg RabbitMQConfig) (*RabbitConn, error) {
 	}, nil
 }
 
-func (c *RabbitConn) Close() error {
-	if err := c.Channel.Close(); err != nil {
-		return fmt.Errorf("failed to close channel: %w", err)
+func (c *Client) Reconnect() (*RabbitConn, error) {
+	cfg := LoadRabbitMQConfig(*c.config)
+
+	var conn *amqp091.Connection
+	var ch *amqp091.Channel
+	var err error
+
+	for attempt := 1; attempt <= cfg.MaxRetries; attempt++ {
+		conn, err = amqp091.DialConfig(cfg.URL, amqp091.Config{Heartbeat: 10 * time.Second})
+		if err == nil {
+			ch, err = conn.Channel()
+			if err == nil {
+				if err := ch.Qos(1, 0, false); err != nil {
+					conn.Close()
+					return nil, err
+				}
+				return &RabbitConn{Connection: conn, Channel: ch}, nil
+			}
+			conn.Close()
+		}
+		log.Printf("[RabbitMQ] Reconnect attempt %d/%d failed: %v. Retrying in %ds", attempt, cfg.MaxRetries, err, cfg.RetryDelaySeconds)
+		time.Sleep(time.Duration(cfg.RetryDelaySeconds) * time.Second)
 	}
-	if err := c.Connection.Close(); err != nil {
-		return fmt.Errorf("failed to close connection: %w", err)
-	}
-	return nil
+	return nil, fmt.Errorf("failed to reconnect after %d attempts: %w", cfg.MaxRetries, err)
 }
