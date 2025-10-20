@@ -1,10 +1,11 @@
 module github.com/Ajinx1/go-storage-config
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/IBM/sarama v1.45.2
 	github.com/joho/godotenv v1.5.1
+	github.com/xuri/excelize/v2 v2.10.0
 	go.uber.org/zap v1.27.0
 	gorm.io/gorm v1.25.12
 )
@@ -46,13 +47,18 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
+	github.com/richardlehane/mscfb v1.0.4 // indirect
+	github.com/richardlehane/msoleps v1.0.4 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
+	github.com/tiendc/go-deepcopy v1.7.1 // indirect
+	github.com/xuri/efp v0.0.1 // indirect
+	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/net v0.46.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 )
 
 require (
@@ -62,7 +68,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.89
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.7.3
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlserver v1.5.4
 )
