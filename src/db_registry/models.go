@@ -1,6 +1,6 @@
 package db_registry
 
-type DataSource struct {
+type ReportDataSource struct {
 	ID           uint   `gorm:"primaryKey" json:"id"`
 	Code         string `gorm:"uniqueIndex;not null" json:"code"`
 	Name         string `gorm:"not null" json:"name"`
@@ -8,3 +8,4 @@ type DataSource struct {
 	SchemaName   string `json:"schema_name"`
 	Active       bool   `gorm:"default:true" json:"active"`
 }
+
