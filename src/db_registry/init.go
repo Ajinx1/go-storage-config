@@ -8,7 +8,7 @@ func Init(metaDB *gorm.DB, factory DBFactory) (*Registry, error) {
 		return nil, err
 	}
 
-	srcMap := make(map[string]DataSource)
+	srcMap := make(map[string]ReportDataSource)
 	for _, s := range sources {
 		if s.DatabaseName != "" {
 			srcMap[s.DatabaseName] = s
