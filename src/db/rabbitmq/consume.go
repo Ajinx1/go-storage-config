@@ -96,7 +96,7 @@ func (c *Client) ConsumeWithMiddleware(ctx context.Context, queue string,
 				}
 
 				if handlerErr != nil {
-					msg.Nack(false, true)
+					msg.Nack(false, false)
 					continue
 				}
 
