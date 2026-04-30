@@ -74,7 +74,6 @@ func (c *Client) ConsumeWithMiddlewareDev(ctx context.Context, queue string,
 					continue
 				}
 
-				// Middleware
 				for _, mw := range middlewares {
 					if err := mw(ctx, queue, msg.Body); err != nil {
 						log.Printf("[Worker] Middleware failed: %v", err)

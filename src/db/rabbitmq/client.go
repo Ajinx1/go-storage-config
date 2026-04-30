@@ -28,15 +28,20 @@ func NewClientWithConfig(cfg RabbitMQConfig) (*Client, error) {
 		config: LoadRabbitMQConfig(cfg),
 	}
 
-	if err := client.setupDLX(); err != nil {
-		return nil, err
-	}
-
 	return client, nil
 }
 
-func (c *Client) setupDLX() error {
-	err := c.conn.Channel.ExchangeDeclare(
+func (c *Client) setupDLXForQueue(queue string) error {
+
+	ch, err := c.conn.Connection.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	dlqName := queue + ".dlq"
+
+	if err := ch.ExchangeDeclare(
 		c.config.DeadLetterExchange,
 		"direct",
 		true,
@@ -44,13 +49,12 @@ func (c *Client) setupDLX() error {
 		false,
 		false,
 		nil,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
-	_, err = c.conn.Channel.QueueDeclare(
-		c.config.DeadLetterQueue,
+	_, err = ch.QueueDeclare(
+		dlqName,
 		true,
 		false,
 		false,
@@ -61,9 +65,9 @@ func (c *Client) setupDLX() error {
 		return err
 	}
 
-	return c.conn.Channel.QueueBind(
-		c.config.DeadLetterQueue,
-		"",
+	return ch.QueueBind(
+		dlqName,
+		dlqName,
 		c.config.DeadLetterExchange,
 		false,
 		nil,
@@ -88,21 +92,26 @@ func (c *Client) PublishWithMiddleware(ctx context.Context, queue string, body i
 }
 
 func (c *Client) publish(queue string, body []byte) error {
-	_, err := c.conn.Channel.QueueDeclare(
+
+	ch, err := c.conn.Connection.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	_, err = ch.QueueDeclare(
 		queue,
 		true,
 		false,
 		false,
 		false,
-		amqp091.Table{
-			"x-dead-letter-exchange": c.config.DeadLetterExchange,
-		},
+		nil,
 	)
 	if err != nil {
 		return err
 	}
 
-	return c.conn.Channel.PublishWithContext(
+	return ch.PublishWithContext(
 		context.Background(),
 		"",
 		queue,
