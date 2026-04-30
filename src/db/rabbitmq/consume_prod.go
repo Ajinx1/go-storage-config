@@ -60,6 +60,7 @@ func (c *Client) ConsumeWithMiddleware(
 				continue
 			}
 
+			// 🔥 Try declare WITH DLQ
 			_, err = ch.QueueDeclare(
 				queue,
 				true,
@@ -73,8 +74,28 @@ func (c *Client) ConsumeWithMiddleware(
 			)
 
 			if err != nil {
-				log.Printf("[Worker] DLQ declare failed for %s, falling back: %v", queue, err)
+				log.Printf("[Worker] DLQ declare failed for %s, reopening channel: %v", queue, err)
 
+				// ❗ VERY IMPORTANT: close broken channel
+				ch.Close()
+
+				// 🔥 open a NEW channel
+				ch, err = c.conn.Connection.Channel()
+				if err != nil {
+					log.Printf("[Worker] Failed to reopen channel: %v", err)
+					time.Sleep(backoff)
+					continue
+				}
+
+				// 🔥 reapply QoS
+				prefetch := 5
+				if err := ch.Qos(prefetch, 0, false); err != nil {
+					log.Printf("[Worker] Failed to set QoS after reopen: %v", err)
+					ch.Close()
+					continue
+				}
+
+				// 🔥 now declare WITHOUT args
 				_, err = ch.QueueDeclare(
 					queue,
 					true,
