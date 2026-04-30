@@ -22,6 +22,10 @@ func (c *Client) ConsumeWithMiddleware(
 		backoff := time.Duration(c.config.RetryDelaySeconds) * time.Second
 		maxBackoff := 60 * time.Second
 
+		if err := c.setupDLXForQueue(queue); err != nil {
+			log.Printf("[Worker] failed to setup DLQ for %s: %v", queue, err)
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -46,10 +50,6 @@ func (c *Client) ConsumeWithMiddleware(
 				backoff = time.Duration(c.config.RetryDelaySeconds) * time.Second
 			}
 
-			if err := c.setupDLXForQueue(queue); err != nil {
-				log.Printf("[Worker] failed to setup DLQ for %s: %v", queue, err)
-			}
-
 			ch, err := c.conn.Connection.Channel()
 			if err != nil {
 				log.Printf("[Worker] Failed to open channel: %v", err)
@@ -64,51 +64,11 @@ func (c *Client) ConsumeWithMiddleware(
 				continue
 			}
 
-			_, err = ch.QueueDeclare(
-				queue,
-				true,
-				false,
-				false,
-				false,
-				amqp091.Table{
-					"x-dead-letter-exchange":    c.config.DeadLetterExchange,
-					"x-dead-letter-routing-key": queue + ".dlq",
-				},
-			)
-
-			if err != nil {
-				log.Printf("[Worker] DLQ declare failed for %s, reopening channel: %v", queue, err)
-
+			if err := c.declareQueueSafe(ch, queue); err != nil {
+				log.Printf("[Worker] Failed to declare queue %s: %v", queue, err)
 				ch.Close()
-
-				ch, err = c.conn.Connection.Channel()
-				if err != nil {
-					log.Printf("[Worker] Failed to reopen channel: %v", err)
-					time.Sleep(backoff)
-					continue
-				}
-
-				prefetch := 5
-				if err := ch.Qos(prefetch, 0, false); err != nil {
-					log.Printf("[Worker] Failed to set QoS after reopen: %v", err)
-					ch.Close()
-					continue
-				}
-
-				_, err = ch.QueueDeclare(
-					queue,
-					true,
-					false,
-					false,
-					false,
-					nil,
-				)
-				if err != nil {
-					log.Printf("[Worker] Failed to declare queue %s even without DLQ: %v", queue, err)
-					ch.Close()
-					time.Sleep(backoff)
-					continue
-				}
+				time.Sleep(backoff)
+				continue
 			}
 
 			msgs, err := ch.Consume(
@@ -140,7 +100,7 @@ func (c *Client) ConsumeWithMiddleware(
 					if err := json.Unmarshal(msg.Body, data); err != nil {
 						log.Printf("[Worker] JSON unmarshal failed → DLQ. body=%s", string(msg.Body))
 						_ = msg.Nack(false, false)
-						publishToDLQ(ctx, ch, queue, msg)
+						c.publishToDLQ(ctx, queue, msg)
 						return
 					}
 
@@ -151,7 +111,7 @@ func (c *Client) ConsumeWithMiddleware(
 							if alreadyRetried(msg) {
 								log.Printf("[Worker] Middleware retry exhausted → DLQ")
 								_ = msg.Nack(false, false)
-								publishToDLQ(ctx, ch, queue, msg)
+								c.publishToDLQ(ctx, queue, msg)
 							} else {
 								_ = msg.Nack(false, true)
 							}
@@ -178,7 +138,7 @@ func (c *Client) ConsumeWithMiddleware(
 						log.Printf("[Worker] Sending message to DLQ after retries")
 
 						_ = msg.Nack(false, false)
-						publishToDLQ(ctx, ch, queue, msg)
+						c.publishToDLQ(ctx, queue, msg)
 						return
 					}
 

@@ -99,15 +99,7 @@ func (c *Client) publish(queue string, body []byte) error {
 	}
 	defer ch.Close()
 
-	_, err = ch.QueueDeclare(
-		queue,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
+	if err := c.declareQueueSafe(ch, queue); err != nil {
 		return err
 	}
 
