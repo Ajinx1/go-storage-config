@@ -10,7 +10,7 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-func (c *Client) ConsumeWithMiddleware(ctx context.Context, queue string,
+func (c *Client) ConsumeWithMiddlewareDev(ctx context.Context, queue string,
 	handler func(context.Context, interface{}) error, target interface{},
 	middlewares ...Middleware) error {
 
