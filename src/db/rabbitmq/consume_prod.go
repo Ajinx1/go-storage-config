@@ -29,7 +29,6 @@ func (c *Client) ConsumeWithMiddleware(
 			default:
 			}
 
-			// Reconnect if connection closed
 			if c.conn.Connection == nil || c.conn.Connection.IsClosed() {
 				log.Printf("[Worker] RabbitMQ connection closed, reconnecting...")
 
@@ -53,9 +52,7 @@ func (c *Client) ConsumeWithMiddleware(
 				time.Sleep(backoff)
 				continue
 			}
-			c.conn.Channel = ch
 
-			// 🔥 QoS (controls concurrency per consumer)
 			prefetch := 5
 			if err := ch.Qos(prefetch, 0, false); err != nil {
 				log.Printf("[Worker] Failed to set QoS: %v", err)
@@ -63,7 +60,6 @@ func (c *Client) ConsumeWithMiddleware(
 				continue
 			}
 
-			// Declare queue
 			_, err = ch.QueueDeclare(
 				queue,
 				true,
@@ -75,17 +71,30 @@ func (c *Client) ConsumeWithMiddleware(
 					"x-dead-letter-routing-key": queue + ".dlq",
 				},
 			)
+
 			if err != nil {
-				log.Printf("[Worker] Failed to declare queue %s: %v", queue, err)
-				ch.Close()
-				continue
+				log.Printf("[Worker] DLQ declare failed for %s, falling back: %v", queue, err)
+
+				_, err = ch.QueueDeclare(
+					queue,
+					true,
+					false,
+					false,
+					false,
+					nil,
+				)
+				if err != nil {
+					log.Printf("[Worker] Failed to declare queue %s even without DLQ: %v", queue, err)
+					ch.Close()
+					time.Sleep(backoff)
+					continue
+				}
 			}
 
-			// Start consuming
 			msgs, err := ch.Consume(
 				queue,
 				"",
-				false, // manual ack
+				false,
 				false,
 				false,
 				false,
@@ -99,7 +108,6 @@ func (c *Client) ConsumeWithMiddleware(
 
 			log.Printf("[Worker] Started consumer for queue: %s (prefetch=%d)", queue, prefetch)
 
-			// 🔥 Worker pool (limits goroutines to prefetch)
 			sem := make(chan struct{}, prefetch)
 
 			for msg := range msgs {
@@ -108,24 +116,29 @@ func (c *Client) ConsumeWithMiddleware(
 				go func(msg amqp091.Delivery) {
 					defer func() { <-sem }()
 
-					// Deserialize
 					data := reflect.New(reflect.TypeOf(target).Elem()).Interface()
 					if err := json.Unmarshal(msg.Body, data); err != nil {
-						log.Printf("[Worker] JSON unmarshal failed: %v", err)
-						msg.Nack(false, false) // send to DLQ
+						log.Printf("[Worker] JSON unmarshal failed → DLQ. body=%s", string(msg.Body))
+						_ = msg.Nack(false, false)
+						publishToDLQ(ctx, ch, queue, msg)
 						return
 					}
 
-					// Middleware execution
 					for _, mw := range middlewares {
 						if err := mw(ctx, queue, msg.Body); err != nil {
 							log.Printf("[Worker] Middleware failed: %v", err)
-							msg.Nack(false, true) // requeue
+
+							if alreadyRetried(msg) {
+								log.Printf("[Worker] Middleware retry exhausted → DLQ")
+								_ = msg.Nack(false, false)
+								publishToDLQ(ctx, ch, queue, msg)
+							} else {
+								_ = msg.Nack(false, true)
+							}
 							return
 						}
 					}
 
-					// Handler retry logic
 					const maxHandlerRetries = 3
 					var handlerErr error
 
@@ -143,11 +156,12 @@ func (c *Client) ConsumeWithMiddleware(
 
 					if handlerErr != nil {
 						log.Printf("[Worker] Sending message to DLQ after retries")
-						msg.Nack(false, false)
+
+						_ = msg.Nack(false, false)
+						publishToDLQ(ctx, ch, queue, msg)
 						return
 					}
 
-					// ACK
 					if err := msg.Ack(false); err != nil {
 						log.Printf("[Worker] Failed to ack message: %v", err)
 					} else {
