@@ -16,7 +16,7 @@ func Middleware(secret string) fiber.Handler {
 			return fiber.ErrUnauthorized
 		}
 
-		c.Locals("user_claims", claims)
+		c.Locals(ContextClaimsKey, claims)
 
 		return c.Next()
 	}
@@ -24,7 +24,7 @@ func Middleware(secret string) fiber.Handler {
 
 func ClaimsFromContext(c *fiber.Ctx) (*Claims, error) {
 
-	claims, ok := c.Locals("user_claims").(*Claims)
+	claims, ok := c.Locals(ContextClaimsKey).(*Claims)
 	if !ok {
 		return nil, errors.New("user claims not found")
 	}

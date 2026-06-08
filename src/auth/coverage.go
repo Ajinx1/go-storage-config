@@ -9,6 +9,7 @@ const (
 	CoverageOffice   = "OFFICE"
 	CoverageRegional = "REGIONAL"
 	CoverageNational = "NATIONAL"
+	ContextClaimsKey = "user_claims"
 )
 
 func (c *Claims) IsOffice() bool {
