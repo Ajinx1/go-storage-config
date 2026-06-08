@@ -65,3 +65,7 @@ func (c *Claims) HasAccessToOffice(officeID int64) bool {
 
 	return false
 }
+
+func (c *Claims) AllowedOfficeIDs() []int64 {
+	return c.GetOfficeIDs()
+}

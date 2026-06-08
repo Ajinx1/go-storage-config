@@ -7,6 +7,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.12.3
 	github.com/xuri/excelize/v2 v2.10.0
 	go.uber.org/zap v1.27.0
 	gorm.io/gorm v1.25.12
