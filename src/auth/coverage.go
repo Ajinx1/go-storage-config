@@ -24,7 +24,7 @@ func (c *Claims) IsNational() bool {
 	return strings.EqualFold(c.Coverage, CoverageNational)
 }
 
-func (c *Claims) GetOfficeID() string {
+func (c *Claims) GetOfficeIDString() string {
 	return c.Office.ID
 }
 
@@ -64,8 +64,4 @@ func (c *Claims) HasAccessToOffice(officeID int64) bool {
 	}
 
 	return false
-}
-
-func (c *Claims) AllowedOfficeIDs() []int64 {
-	return c.GetOfficeIDs()
 }

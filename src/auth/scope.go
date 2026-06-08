@@ -28,7 +28,7 @@ func (c *Claims) ScopeQuery(
 		return db.Where(fmt.Sprintf(`%s = ANY(?)`, column), pq.Array(officeIDs))
 
 	case c.IsOffice():
-		return db.Where(fmt.Sprintf(`%s = ?`, column), c.GetOfficeID())
+		return db.Where(fmt.Sprintf(`%s = ?`, column), c.GetOfficeIDString())
 
 	default:
 		return db.Where("1 = 0")
