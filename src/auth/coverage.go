@@ -9,6 +9,8 @@ const (
 	CoverageOffice   = "OFFICE"
 	CoverageRegional = "REGIONAL"
 	CoverageNational = "NATIONAL"
+	UserTypeTaxpayer = "TAXPAYER"
+	UserTypeAdmin    = "ADMIN"
 	ContextClaimsKey = "user_claims"
 )
 
@@ -24,7 +26,23 @@ func (c *Claims) IsNational() bool {
 	return strings.EqualFold(c.Coverage, CoverageNational)
 }
 
+func (c *Claims) IsTaxpayer() bool {
+	return strings.EqualFold(c.UserType, UserTypeTaxpayer)
+}
+
+func (c *Claims) IsStaff() bool {
+	return !c.IsTaxpayer()
+}
+
+func (c *Claims) IsAdmin() bool {
+	return strings.EqualFold(c.UserType, UserTypeAdmin)
+}
+
 func (c *Claims) GetOfficeIDString() string {
+	if c.Office == nil {
+		return ""
+	}
+
 	return c.Office.ID
 }
 
@@ -39,8 +57,12 @@ func (c *Claims) GetOfficeIDs() []int64 {
 		return c.RegionalOffices
 
 	case CoverageOffice:
-		id, err := strconv.ParseInt(c.Office.ID, 10, 64)
 
+		if c.Office == nil {
+			return []int64{}
+		}
+
+		id, err := strconv.ParseInt(c.Office.ID, 10, 64)
 		if err != nil {
 			return []int64{}
 		}
