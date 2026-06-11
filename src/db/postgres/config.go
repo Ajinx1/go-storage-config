@@ -5,8 +5,8 @@ import "time"
 const (
 	DefaultMaxOpenConns    = 30
 	DefaultMaxIdleConns    = 15
-	DefaultConnMaxLifetime = 20 * time.Minute
-	DefaultConnMaxIdleTime = 10 * time.Minute
+	DefaultConnMaxLifetime = 40 * time.Minute
+	DefaultConnMaxIdleTime = 20 * time.Minute
 )
 
 type Config struct {
