@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"strconv"
-	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -13,6 +12,7 @@ func ConnectFromEnv(theConfig Config) (*gorm.DB, error) {
 }
 
 func Connect(config Config) (*gorm.DB, error) {
+	config = config.normalize()
 	dsn := getDSN(config)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -27,10 +27,10 @@ func Connect(config Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	sqlDB.SetMaxOpenConns(30)
-	sqlDB.SetMaxIdleConns(15)
-	sqlDB.SetConnMaxLifetime(20 * time.Minute)
-	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+	sqlDB.SetMaxOpenConns(config.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(config.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(config.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(config.ConnMaxIdleTime)
 
 	if err := sqlDB.Ping(); err != nil {
 		return nil, err
