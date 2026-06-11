@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type DBFactory func(databaseName string) (*gorm.DB, error)
+type DBFactory func(src ReportDataSource) (*gorm.DB, error)
 
 type Registry struct {
 	mu       sync.RWMutex

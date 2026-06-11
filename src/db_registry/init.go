@@ -9,9 +9,10 @@ func Init(metaDB *gorm.DB, factory DBFactory) (*Registry, error) {
 	}
 
 	srcMap := make(map[string]ReportDataSource)
+
 	for _, s := range sources {
-		if s.DatabaseName != "" {
-			srcMap[s.DatabaseName] = s
+		if s.Code != "" {
+			srcMap[s.Code] = s
 		}
 	}
 

@@ -5,7 +5,6 @@ import (
 
 	"github.com/Ajinx1/go-storage-config/src/db/postgres"
 	"github.com/Ajinx1/go-storage-config/src/db/sqlserver"
-	"github.com/Ajinx1/go-storage-config/src/utils"
 
 	"gorm.io/gorm"
 )
@@ -16,7 +15,6 @@ const (
 )
 
 func Connect(driver string, theConfig interface{}) (*gorm.DB, error) {
-	utils.LoadEnv()
 
 	switch driver {
 	case Postgres:

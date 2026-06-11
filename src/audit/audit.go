@@ -10,6 +10,9 @@ import (
 var (
 	eventChan chan Event
 	once      sync.Once
+	closeOnce sync.Once
+	mu        sync.RWMutex
+	closed    bool
 )
 
 func InitAudit(bufferSize int) {
@@ -26,6 +29,19 @@ func InitAudit(bufferSize int) {
 	})
 }
 
+func Close() {
+	closeOnce.Do(func() {
+		mu.Lock()
+		defer mu.Unlock()
+
+		closed = true
+
+		if eventChan != nil {
+			close(eventChan)
+		}
+	})
+}
+
 func Log(eventName, description, actor string) {
 	e := Event{
 		EventName:        eventName,
@@ -34,10 +50,15 @@ func Log(eventName, description, actor string) {
 		EventTimestamp:   time.Now().UTC(),
 	}
 
+	mu.RLock()
+	defer mu.RUnlock()
+
+	if closed {
+		return
+	}
+
 	select {
 	case eventChan <- e:
-		// sent successfully
 	default:
-		// Nothing
 	}
 }

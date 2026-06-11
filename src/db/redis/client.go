@@ -43,3 +43,11 @@ func (c *Client) LPush(key string, value interface{}) error {
 func (c *Client) BRPop(timeout time.Duration, key string) ([]string, error) {
 	return c.conn.Client.BRPop(c.conn.Ctx, timeout, key).Result()
 }
+
+func (c *Client) Close() error {
+	if c == nil || c.conn == nil {
+		return nil
+	}
+
+	return c.conn.Close()
+}

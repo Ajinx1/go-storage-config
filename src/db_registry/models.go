@@ -6,6 +6,7 @@ type ReportDataSource struct {
 	Name         string `gorm:"not null" json:"name"`
 	DatabaseName string `gorm:"not null" json:"database_name"`
 	SchemaName   string `json:"schema_name"`
-	Active       bool   `gorm:"default:true" json:"active"`
+	MaxOpenConns int
+	MaxIdleConns int
+	Active       bool `gorm:"default:true" json:"active"`
 }
-

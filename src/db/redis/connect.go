@@ -32,3 +32,11 @@ func ConnectFromEnv(theConfig RedisConfig) (*RedisConn, error) {
 		Ctx:    ctx,
 	}, nil
 }
+
+func (r *RedisConn) Close() error {
+	if r == nil || r.Client == nil {
+		return nil
+	}
+
+	return r.Client.Close()
+}

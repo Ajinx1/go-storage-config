@@ -9,8 +9,7 @@ import (
 )
 
 func ConnectFromEnv(theConfig Config) (*gorm.DB, error) {
-	config := LoadPostgresConfigFromEnv(theConfig)
-	return Connect(config)
+	return Connect(theConfig)
 }
 
 func Connect(config Config) (*gorm.DB, error) {
