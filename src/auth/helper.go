@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -30,4 +31,37 @@ func ClaimsFromContext(c *fiber.Ctx) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+func (c *Claims) GetActorID() string {
+
+	if c.IsTaxpayer() {
+		return c.GetTaxID()
+	}
+
+	return strconv.FormatInt(c.GetUserID(), 10)
+}
+
+func (c *Claims) PopulateRequestScope(req ScopedRequest) {
+
+	scope := req.GetRequestScope()
+
+	scope.UserID = c.GetActorID()
+	scope.UserName = c.GetDisplayName()
+
+	if c.Office != nil {
+		scope.OfficeID = c.Office.ID
+	}
+
+	if scope.OfficeID == "" && c.IsRegional() {
+		officeIDs := c.GetOfficeIDs()
+		if len(officeIDs) > 0 {
+			scope.OfficeID = strconv.FormatInt(officeIDs[0], 10)
+		}
+	}
+
+	if stateID := c.GetStateID(); stateID > 0 {
+		scope.StateID = strconv.FormatInt(stateID, 10)
+	}
+
 }

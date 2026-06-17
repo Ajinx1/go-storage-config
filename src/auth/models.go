@@ -98,6 +98,17 @@ type TaxGroup struct {
 	Title       string `json:"title"`
 }
 
+type RequestScope struct {
+	UserID   string `json:"user_id"`
+	UserName string `json:"user_name"`
+	OfficeID string `json:"office_id"`
+	StateID  string `json:"state_id"`
+}
+
+type ScopedRequest interface {
+	GetRequestScope() *RequestScope
+}
+
 func (c *Claims) String() string {
 	return fmt.Sprintf("%s (%s) [%s]",
 		c.GetDisplayName(),
