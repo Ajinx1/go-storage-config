@@ -1,55 +1,60 @@
 package minio
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
-	"log"
-	"mime/multipart"
+	"time"
 
 	"github.com/minio/minio-go/v7"
+	gocache "github.com/patrickmn/go-cache"
+	"golang.org/x/sync/singleflight"
 )
+
+var templateCache = gocache.New(
+	72*time.Hour,
+	24*time.Hour,
+)
+
+var templateGroup singleflight.Group
 
 func GetByURL(objectName string) (string, error) {
 	if client == nil {
 		return "", errors.New("MinIO client not initialized")
 	}
 
-	object, err := client.GetObject(context.Background(), getBucket(), objectName, minio.GetObjectOptions{})
+	if cached, found := templateCache.Get(objectName); found {
+		return cached.(string), nil
+	}
+	v, err, _ := templateGroup.Do(objectName, func() (interface{}, error) {
+
+		if cached, found := templateCache.Get(objectName); found {
+			return cached.(string), nil
+		}
+
+		object, err := client.GetObject(context.Background(), getBucket(), objectName, minio.GetObjectOptions{})
+		if err != nil {
+			return "", err
+		}
+		defer object.Close()
+
+		content, err := io.ReadAll(object)
+		if err != nil {
+			return "", err
+		}
+
+		html := string(content)
+
+		templateCache.SetDefault(objectName, html)
+
+		return html, nil
+	})
+
 	if err != nil {
 		return "", err
 	}
-	defer object.Close()
 
-	content, err := io.ReadAll(object)
-	if err != nil {
-		return "", err
-	}
-
-	return string(content), nil
-}
-
-func Upload(input UploadInput) (string, error) {
-	if client == nil {
-		return "", errors.New("MinIO client not initialized")
-	}
-
-	_, err := client.PutObject(
-		context.Background(),
-		getBucket(),
-		input.ObjectName,
-		input.File,
-		input.Size,
-		minio.PutObjectOptions{ContentType: input.ContentType},
-	)
-	if err != nil {
-		return "", err
-	}
-
-	url := client.EndpointURL().String() + "/" + getBucket() + "/" + input.ObjectName
-	log.Println("✅ Uploaded to:", url)
-	return url, nil
+	return v.(string), nil
 }
 
 func Delete(input DeleteInput) error {
@@ -83,31 +88,3 @@ func List(input ListInput) ([]string, error) {
 
 	return objects, nil
 }
-
-func UploadFile(file multipart.File, objectName, contentType string) (string, error) {
-	var buffer []byte
-	var size int64
-
-	for {
-		buf := make([]byte, 1024)
-		n, err := file.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return "", err
-		}
-		buffer = append(buffer, buf[:n]...)
-		size += int64(n)
-	}
-
-	input := UploadInput{
-		File:        bytes.NewReader(buffer),
-		ObjectName:  objectName,
-		Size:        size,
-		ContentType: contentType,
-	}
-
-	return Upload(input)
-}
-

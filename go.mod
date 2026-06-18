@@ -8,8 +8,10 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/xuri/excelize/v2 v2.10.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/sync v0.17.0
 	gorm.io/gorm v1.25.12
 )
 
@@ -68,7 +70,6 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 )
 
