@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-
 func CORS(cfg CORSConfig) fiber.Handler {
 
 	allowedOrigins := make(map[string]struct{}, len(cfg.AllowedOrigins))
@@ -46,7 +45,7 @@ func CORS(cfg CORSConfig) fiber.Handler {
 			c.Set("Access-Control-Allow-Credentials", "true")
 			c.Set(
 				"Access-Control-Allow-Headers",
-				"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With",
+				"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, X-API-KEY",
 			)
 			c.Set(
 				"Access-Control-Allow-Methods",
