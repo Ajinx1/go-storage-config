@@ -3,6 +3,9 @@ package minio
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -31,26 +34,22 @@ func getBucket() string {
 func Connect(config MinioConfig) (*minio.Client, error) {
 	endpoint := fmt.Sprintf("%s:%d", config.Url, config.Port)
 
-	// Print the endpoint and SSL flag for debugging
-	// fmt.Println("Connecting to MinIO at:", endpoint)
-	//fmt.Println("Bucket is:", getBucket())
-	// fmt.Printf("Key stuffs: access %v and secret %v", config.AccessKeyID, config.SecretAccessKey)
-
-	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(config.AccessKeyID, config.SecretAccessKey, ""),
-		Secure: config.UseSSL,
+	c, err := minio.New(endpoint, &minio.Options{
+		Creds:     credentials.NewStaticV4(config.AccessKeyID, config.SecretAccessKey, ""),
+		Secure:    config.UseSSL,
+		Transport: minioTransport(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	exists, err := client.BucketExists(context.Background(), getBucket())
+	exists, err := c.BucketExists(context.Background(), getBucket())
 	if err != nil {
 		return nil, err
 	}
 
 	if !exists {
-		err := client.MakeBucket(context.Background(), getBucket(), minio.MakeBucketOptions{})
+		err := c.MakeBucket(context.Background(), getBucket(), minio.MakeBucketOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -65,11 +64,25 @@ func Connect(config MinioConfig) (*minio.Client, error) {
 			}]
 		}`, getBucket())
 
-		err = client.SetBucketPolicy(context.Background(), getBucket(), publicPolicy)
+		err = c.SetBucketPolicy(context.Background(), getBucket(), publicPolicy)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set public policy: %w", err)
 		}
 	}
 
-	return client, nil
+	return c, nil
+}
+
+func minioTransport() *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     90 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 5 * time.Second,
+	}
 }

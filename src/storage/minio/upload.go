@@ -32,6 +32,25 @@ func Upload(input UploadInput) (string, error) {
 	return url, nil
 }
 
+func UploadWithContext(ctx context.Context, input UploadInput) (string, error) {
+	if client == nil {
+		return "", errors.New("MinIO client not initialized")
+	}
+
+	_, err := client.PutObject(ctx, getBucket(), input.ObjectName, input.File, input.Size, minio.PutObjectOptions{
+		ContentType: input.ContentType,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	url := client.EndpointURL().String() + "/" + getBucket() + "/" + input.ObjectName
+
+	log.Println("✅ Uploaded to:", url)
+
+	return url, nil
+}
+
 func UploadFile(
 	file multipart.File,
 	size int64,
@@ -47,4 +66,22 @@ func UploadFile(
 	}
 
 	return Upload(input)
+}
+
+func UploadFileWithContext(
+	ctx context.Context,
+	file multipart.File,
+	size int64,
+	objectName string,
+	contentType string,
+) (string, error) {
+
+	input := UploadInput{
+		File:        file,
+		Size:        size,
+		ObjectName:  objectName,
+		ContentType: contentType,
+	}
+
+	return UploadWithContext(ctx, input)
 }
