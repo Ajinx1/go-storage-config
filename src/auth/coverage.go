@@ -54,7 +54,7 @@ func (c *Claims) GetOfficeIDs() []int64 {
 		return nil
 
 	case CoverageRegional:
-		return c.RegionalOffices
+		return []int64(c.RegionalOffices)
 
 	case CoverageOffice:
 
