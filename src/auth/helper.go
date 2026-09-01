@@ -39,7 +39,7 @@ func (c *Claims) GetActorID() string {
 		return c.GetTaxID()
 	}
 
-	return strconv.FormatInt(c.GetUserID(), 10)
+	return string(c.GetUserID())
 }
 
 func (c *Claims) PopulateRequestScope(req ScopedRequest) {

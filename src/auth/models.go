@@ -8,6 +8,35 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+type StringOrNumber string
+
+func (s *StringOrNumber) UnmarshalJSON(data []byte) error {
+
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*s = StringOrNumber(str)
+		return nil
+	}
+
+	var num int64
+	if err := json.Unmarshal(data, &num); err == nil {
+		*s = StringOrNumber(strconv.FormatInt(num, 10))
+		return nil
+	}
+
+	var floatNum float64
+	if err := json.Unmarshal(data, &floatNum); err == nil {
+		*s = StringOrNumber(strconv.FormatFloat(floatNum, 'f', -1, 64))
+		return nil
+	}
+
+	return fmt.Errorf("failed to parse sub as string or number: %s", string(data))
+}
+
+func (s StringOrNumber) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(s))
+}
+
 type RegionalOffices []int64
 
 func (r *RegionalOffices) UnmarshalJSON(data []byte) error {
@@ -48,8 +77,7 @@ func (r RegionalOffices) MarshalJSON() ([]byte, error) {
 }
 
 type Claims struct {
-	// Staff fields
-	Sub             int64           `json:"sub,omitempty"`
+	Sub             StringOrNumber  `json:"sub,omitempty"`
 	IRNumber        string          `json:"ir_number,omitempty"`
 	Designation     string          `json:"designation,omitempty"`
 	Department      string          `json:"department,omitempty"`

@@ -10,7 +10,7 @@ func (c *Claims) IsExpired() bool {
 	return time.Now().Unix() > c.Exp
 }
 
-func (c *Claims) GetUserID() int64 {
+func (c *Claims) GetUserID() StringOrNumber {
 	return c.Sub
 }
 
