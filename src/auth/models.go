@@ -97,8 +97,16 @@ type Claims struct {
 
 	// Office
 	Office *Office `json:"office,omitempty"`
-	Iat    int64   `json:"iat"`
-	Exp    int64   `json:"exp"`
+
+	// GBO Entity fields
+	UserID        string `json:"user_id,omitempty"`
+	EntityTaxID   string `json:"entity_tax_id,omitempty"`
+	EntityType    string `json:"entity_type,omitempty"`
+	Username      string `json:"username,omitempty"`
+	IsEntityAdmin bool   `json:"is_entity_admin,omitempty"`
+
+	Iat int64 `json:"iat"`
+	Exp int64 `json:"exp"`
 
 	jwt.RegisteredClaims
 }

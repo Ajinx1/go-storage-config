@@ -9,9 +9,10 @@ const (
 	CoverageOffice   = "OFFICE"
 	CoverageRegional = "REGIONAL"
 	CoverageNational = "NATIONAL"
-	UserTypeTaxpayer = "TAXPAYER"
-	UserTypeAdmin    = "ADMIN"
-	ContextClaimsKey = "user_claims"
+	UserTypeTaxpayer   = "TAXPAYER"
+	UserTypeAdmin      = "ADMIN"
+	UserTypeEntityUser = "entity_user"
+	ContextClaimsKey   = "user_claims"
 )
 
 func (c *Claims) IsOffice() bool {
@@ -30,8 +31,16 @@ func (c *Claims) IsTaxpayer() bool {
 	return strings.EqualFold(c.UserType, UserTypeTaxpayer)
 }
 
+func (c *Claims) IsGBOUser() bool {
+	return strings.EqualFold(c.UserType, UserTypeEntityUser) || c.EntityTaxID != ""
+}
+
+func (c *Claims) IsGBOAdmin() bool {
+	return c.IsGBOUser() && c.IsEntityAdmin
+}
+
 func (c *Claims) IsStaff() bool {
-	return !c.IsTaxpayer()
+	return !c.IsTaxpayer() && !c.IsGBOUser()
 }
 
 func (c *Claims) IsAdmin() bool {

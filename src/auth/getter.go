@@ -130,3 +130,14 @@ func (c *Claims) GetOfficeGroupName() string {
 
 	return strings.TrimSpace(c.Office.OfficeGroup.Title)
 }
+
+func (c *Claims) GetEntityTaxID() string {
+	if c.EntityTaxID != "" {
+		return c.EntityTaxID
+	}
+	return c.TaxID
+}
+
+func (c *Claims) GetEntityType() string {
+	return c.EntityType
+}

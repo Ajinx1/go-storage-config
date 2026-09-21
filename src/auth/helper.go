@@ -7,11 +7,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Middleware(secret string) fiber.Handler {
+func Middleware(secret string, fallbackSecrets ...string) fiber.Handler {
 
 	return func(c *fiber.Ctx) error {
 
-		claims, err := GetClaims(c.Get("Authorization"), secret)
+		claims, err := GetClaims(c.Get("Authorization"), secret, fallbackSecrets...)
 
 		if err != nil {
 			return fiber.ErrUnauthorized
@@ -34,6 +34,12 @@ func ClaimsFromContext(c *fiber.Ctx) (*Claims, error) {
 }
 
 func (c *Claims) GetActorID() string {
+	if c.IsGBOUser() {
+		if c.UserID != "" {
+			return c.UserID
+		}
+		return string(c.GetUserID())
+	}
 
 	if c.IsTaxpayer() {
 		return c.GetTaxID()
