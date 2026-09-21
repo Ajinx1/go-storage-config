@@ -14,7 +14,7 @@ func (c *Claims) ScopeQuery(
 	taxpayerColumn ...string,
 ) (*gorm.DB, error) {
 
-	if c.IsTaxpayer() {
+	if c.IsTaxpayer() || c.IsGBOUser() {
 
 		if len(taxpayerColumn) == 0 {
 			return db, nil
