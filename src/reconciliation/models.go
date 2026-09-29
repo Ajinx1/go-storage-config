@@ -195,7 +195,7 @@ type AuditLog struct {
 }
 
 func (AuditLog) TableName() string {
-	return "audit_logs"
+	return "tbl_audit_logs"
 }
 
 // Tax Models & JSON helpers
