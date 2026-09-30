@@ -629,7 +629,7 @@ func ReconcileSingleAssessment(
 				Currency:            assessment.Currency,
 				Amount:              amount,
 				AssessmentNumber:    assessment.AssessmentNo,
-				PaymentReference:    paymentRef,
+				PaymentReference:    assessment.PaymentReference,
 				PayerName:           assessment.BusinessName,
 				PayerTIN:            assessment.TIN,
 				AssessmentPeriod:    assessment.AssessmentPeriod,
