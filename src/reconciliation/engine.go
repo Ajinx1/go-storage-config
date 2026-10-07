@@ -3,6 +3,7 @@ package reconciliation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -65,6 +66,11 @@ func (e *Engine) ReconcileBatch(ctx context.Context, req BatchReconcileRequest) 
 		return nil, errors.New("at least one assessment number is required")
 	}
 
+	reqType := req.GetType()
+	if reqType != "" && reqType != "staff" && reqType != "office" {
+		return nil, fmt.Errorf("invalid the_type '%s': must be 'staff' or 'office'", reqType)
+	}
+
 	response := &BatchReconcileResponse{
 		Results: make([]ReconciliationItemResult, 0, len(req.AssessmentNumbers)),
 	}
@@ -85,6 +91,24 @@ func (e *Engine) ReconcileBatch(ctx context.Context, req BatchReconcileRequest) 
 		userID := getConfigVal(req.UserIDs, i, "system")
 		userName := getConfigVal(req.UserNames, i, "system")
 
+		if reqType == "staff" {
+			isAdd := req.IsAdd()
+			res, err := ProcessStaffPenaltyInterest(ctx, &e.cfg, asmClean, isAdd, req.DryRun, userID, userName)
+			if err != nil {
+				response.TotalFailed++
+				response.Results = append(response.Results, ReconciliationItemResult{
+					AssessmentNumber: asmClean,
+					Status:           "FAILED",
+					Message:          err.Error(),
+				})
+			} else {
+				response.TotalSuccessful++
+				response.TotalAmountReconciled += res.ReconciledAmount
+				response.Results = append(response.Results, *res)
+			}
+			continue
+		}
+
 		if req.UpdatePenaltyInterest {
 			res, err := UpdatePaymentPenaltyInterest(ctx, &e.cfg, asmClean, userID, userName)
 			if err != nil {
@@ -102,7 +126,6 @@ func (e *Engine) ReconcileBatch(ctx context.Context, req BatchReconcileRequest) 
 			continue
 		}
 
-		// 2. Standard Legacy Manual Reconciliation Flow
 		paymentRef := getConfigVal(req.PaymentReferences, i, "")
 		bankRef := getConfigVal(req.BankReferences, i, "")
 		channel := getConfigVal(req.PaymentChannels, i, "")

@@ -1,12 +1,12 @@
 package reconciliation
 
 import (
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-// Assessment maps to the 'assessments' table in the Assessment DB.
 type Assessment struct {
 	ID               string     `gorm:"column:id;primaryKey"`
 	AssessmentNo     string     `gorm:"column:assessmentNo;uniqueIndex"`
@@ -30,6 +30,7 @@ type Assessment struct {
 	OfficeID         string     `gorm:"column:officeId"`
 	StateID          string     `gorm:"column:stateId"`
 	TaxLiability     string     `gorm:"column:taxLiability;type:jsonb"`
+	SIP              bool       `gorm:"column:sip"`
 }
 
 func (Assessment) TableName() string {
@@ -38,27 +39,27 @@ func (Assessment) TableName() string {
 
 // TaxLedger maps to the 'tax_ledgers' table in the Assessment DB.
 type TaxLedger struct {
-	ID                        string     `gorm:"column:id;primaryKey"`
-	DateCreated               time.Time  `gorm:"column:date_created"`
-	DateUpdated               time.Time  `gorm:"column:date_updated"`
-	IsDeleted                 bool       `gorm:"column:isDeleted"`
-	CreatedBy                 string     `gorm:"column:created_by"`
-	UpdatedBy                 string     `gorm:"column:updated_by"`
-	TINHash                   string     `gorm:"column:tin_hash"`
-	TINEncrypted              string     `gorm:"column:tin_encrypted"`
-	AssessmentNumberHash      string     `gorm:"column:assessment_number_hash"`
-	AssessmentNumberEncrypted string     `gorm:"column:assessment_number_encrypted"`
-	TaxType                   string     `gorm:"column:tax_type"`
-	AssessmentPeriod          string     `gorm:"column:assessment_period"`
-	AssessmentMonth           *string    `gorm:"column:assessment_month"`
-	Description               string     `gorm:"column:description"`
-	Amount                    float64    `gorm:"column:amount"`
-	Balance                   float64    `gorm:"column:balance"`
-	OfficeID                  string     `gorm:"column:officeId"`
-	StateID                   string     `gorm:"column:stateId"`
-	Currency                  string     `gorm:"column:currency"`
-	Type                      string     `gorm:"column:type"` // "DR" or "CR"
-	PaymentMethod             string     `gorm:"column:payment_method"`
+	ID                        string    `gorm:"column:id;primaryKey"`
+	DateCreated               time.Time `gorm:"column:date_created"`
+	DateUpdated               time.Time `gorm:"column:date_updated"`
+	IsDeleted                 bool      `gorm:"column:isDeleted"`
+	CreatedBy                 string    `gorm:"column:created_by"`
+	UpdatedBy                 string    `gorm:"column:updated_by"`
+	TINHash                   string    `gorm:"column:tin_hash"`
+	TINEncrypted              string    `gorm:"column:tin_encrypted"`
+	AssessmentNumberHash      string    `gorm:"column:assessment_number_hash"`
+	AssessmentNumberEncrypted string    `gorm:"column:assessment_number_encrypted"`
+	TaxType                   string    `gorm:"column:tax_type"`
+	AssessmentPeriod          string    `gorm:"column:assessment_period"`
+	AssessmentMonth           *string   `gorm:"column:assessment_month"`
+	Description               string    `gorm:"column:description"`
+	Amount                    float64   `gorm:"column:amount"`
+	Balance                   float64   `gorm:"column:balance"`
+	OfficeID                  string    `gorm:"column:officeId"`
+	StateID                   string    `gorm:"column:stateId"`
+	Currency                  string    `gorm:"column:currency"`
+	Type                      string    `gorm:"column:type"` // "DR" or "CR"
+	PaymentMethod             string    `gorm:"column:payment_method"`
 }
 
 func (TaxLedger) TableName() string {
@@ -236,6 +237,10 @@ type Config struct {
 // Request & Response DTOs
 
 type BatchReconcileRequest struct {
+	TheType               string    `json:"the_type,omitempty"`
+	Type                  string    `json:"type,omitempty"`
+	Add                   *bool     `json:"add,omitempty"`
+	DryRun                bool      `json:"dry_run,omitempty"`
 	AssessmentNumbers     []string  `json:"assessment_numbers"`
 	PaymentReferences     []string  `json:"payment_references,omitempty"`
 	BankReferences        []string  `json:"bank_references,omitempty"`
@@ -248,7 +253,22 @@ type BatchReconcileRequest struct {
 	UserNames             []string  `json:"user_names,omitempty"`
 	WritePaymentRecord    *bool     `json:"write_payment_record,omitempty"`
 	UpdatePenaltyInterest bool      `json:"update_penalty_interest,omitempty"`
-	BankRefMode           string    `json:"bank_ref_mode,omitempty"` // "generate" or "same"
+	BankRefMode           string    `json:"bank_ref_mode,omitempty"`
+}
+
+func (r *BatchReconcileRequest) GetType() string {
+	t := strings.ToLower(strings.TrimSpace(r.TheType))
+	if t == "" {
+		t = strings.ToLower(strings.TrimSpace(r.Type))
+	}
+	return t
+}
+
+func (r *BatchReconcileRequest) IsAdd() bool {
+	if r.Add == nil {
+		return true
+	}
+	return *r.Add
 }
 
 type ReconciliationItemResult struct {

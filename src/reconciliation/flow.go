@@ -655,10 +655,8 @@ func ReconcileSingleAssessment(
 			}
 		}
 
-		// Cleanup incomplete payment artifacts in Payment DB
 		txRecord, _ := cleanUpPaymentData(cfg.PaymentDB, assessmentNumber)
 
-		// Audit DB simulation (if AuditDB session is provided)
 		if cfg.AuditDB != nil {
 			prn := paymentRef
 			transID := ""
@@ -685,7 +683,6 @@ func ReconcileSingleAssessment(
 
 			now := time.Now().UTC()
 
-			// 1. WEBHOOK_FORWARDED
 			fwdPayload, _ := json.Marshal(map[string]interface{}{
 				"status":        "updated",
 				"correlationId": correlationID,
@@ -705,7 +702,6 @@ func ReconcileSingleAssessment(
 				UpdatedAt:   now,
 			})
 
-			// 2. WEBHOOK_RECEIVED (+10s)
 			recvPayload, _ := json.Marshal(map[string]interface{}{
 				"data":          rawWebhookData,
 				"event":         "payment.success",
@@ -728,7 +724,6 @@ func ReconcileSingleAssessment(
 				UpdatedAt:   recvTime,
 			})
 
-			// 3. success (+30s)
 			succTime := now.Add(30 * time.Second)
 			cfg.AuditDB.Create(&AuditLog{
 				ID:          uuid.New().String(),
@@ -750,7 +745,7 @@ func ReconcileSingleAssessment(
 	})
 
 	if err != nil {
-		// Log FAILED in Payment DB
+
 		cfg.PaymentDB.Create(&LegacyReconciliationLog{
 			AssessmentNumber: assessmentNumber,
 			PaymentReference: paymentRef,

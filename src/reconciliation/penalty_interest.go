@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// UpdatePaymentPenaltyInterest updates an existing payment record and ledger with new penalty/interest charges.
 func UpdatePaymentPenaltyInterest(
 	ctx context.Context,
 	cfg *Config,
@@ -29,7 +29,7 @@ func UpdatePaymentPenaltyInterest(
 	var paymentRef string
 
 	err := cfg.AssessmentDB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. Fetch & Lock Assessment
+
 		var assessment Assessment
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where(`"assessmentNo" = ?`, assessmentNumber).
@@ -37,7 +37,6 @@ func UpdatePaymentPenaltyInterest(
 			return fmt.Errorf("assessment %s not found: %w", assessmentNumber, err)
 		}
 
-		// 2. Extract tax liabilities from assessment
 		var liabilityWrapper TaxLiabilityWrapper
 		if assessment.TaxLiability != "" {
 			_ = json.Unmarshal([]byte(assessment.TaxLiability), &liabilityWrapper)
@@ -46,7 +45,6 @@ func UpdatePaymentPenaltyInterest(
 			return fmt.Errorf("assessment %s has no tax liabilities defined", assessmentNumber)
 		}
 
-		// 3. Retrieve payment record from Payment DB
 		var paymentRecord PaymentData
 		if err := cfg.PaymentDB.WithContext(ctx).
 			Where("assessment_number = ?", assessmentNumber).
@@ -187,7 +185,6 @@ func UpdatePaymentPenaltyInterest(
 			}
 		}
 
-		// 7. Clear remaining liability and mark as fully PAID
 		var updatedLiabilities []TaxLiabilityItem
 		for code := range mergedPaidMap {
 			name := TaxTypeNameMap[code]
@@ -235,19 +232,6 @@ func UpdatePaymentPenaltyInterest(
 		}, err
 	}
 
-	// Log SUCCESS
-	cfg.PaymentDB.Create(&LegacyReconciliationLog{
-		AssessmentNumber: assessmentNumber,
-		PaymentReference: paymentRef,
-		BankReference:    bankRef,
-		UserID:           userID,
-		UserName:         userName,
-		Status:           "SUCCESS",
-		Message:          "payment penalty and interest update completed successfully",
-		Amount:           newPaymentAmount,
-		CreatedAt:        time.Now().UTC(),
-	})
-
 	return &ReconciliationItemResult{
 		AssessmentNumber: assessmentNumber,
 		PaymentReference: paymentRef,
@@ -257,4 +241,199 @@ func UpdatePaymentPenaltyInterest(
 		Status:           "SUCCESS",
 		Message:          "Payment penalty and interest updated successfully",
 	}, nil
+}
+
+func parseAmount(val interface{}) float64 {
+	switch v := val.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return f
+	case json.Number:
+		f, _ := v.Float64()
+		return f
+	default:
+		return 0
+	}
+}
+
+func RemovePenaltyAndInterest(taxLiabilityRaw string) (string, float64, float64, float64, error) {
+	if strings.TrimSpace(taxLiabilityRaw) == "" {
+		taxLiabilityRaw = "{}"
+	}
+
+	var root map[string]interface{}
+	decoder := json.NewDecoder(strings.NewReader(taxLiabilityRaw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&root); err != nil {
+		return "", 0, 0, 0, fmt.Errorf("failed to parse taxLiability json: %w", err)
+	}
+
+	var rawLiabilities []interface{}
+	if list, ok := root["taxLiabilities"].([]interface{}); ok {
+		rawLiabilities = list
+	} else if list, ok := root["tax_liabilities"].([]interface{}); ok {
+		rawLiabilities = list
+	}
+
+	filteredLiabilities := make([]interface{}, 0, len(rawLiabilities))
+	var penaltyRemoved float64
+	var interestRemoved float64
+	var newTotal float64
+
+	for _, it := range rawLiabilities {
+		itemMap, ok := it.(map[string]interface{})
+		if !ok {
+			filteredLiabilities = append(filteredLiabilities, it)
+			continue
+		}
+
+		taxCode := ""
+		if tc, ok := itemMap["taxCode"].(string); ok {
+			taxCode = tc
+		} else if tc, ok := itemMap["tax_code"].(string); ok {
+			taxCode = tc
+		}
+		code := strings.ToUpper(strings.TrimSpace(taxCode))
+		amt := parseAmount(itemMap["amount"])
+
+		if code == "PENALTY" {
+			penaltyRemoved += amt
+			continue
+		} else if code == "INTEREST" {
+			interestRemoved += amt
+			continue
+		}
+
+		newTotal += amt
+		filteredLiabilities = append(filteredLiabilities, itemMap)
+	}
+
+	penaltyRemoved = math.Round(penaltyRemoved*100) / 100
+	interestRemoved = math.Round(interestRemoved*100) / 100
+	totalRemoved := math.Round((penaltyRemoved+interestRemoved)*100) / 100
+	newTotal = math.Round(newTotal*100) / 100
+
+	root["taxLiabilities"] = filteredLiabilities
+	root["totalTaxLiabilities"] = newTotal
+
+	newBytes, err := json.Marshal(root)
+	if err != nil {
+		return "", 0, 0, 0, fmt.Errorf("failed to serialize updated taxLiability: %w", err)
+	}
+
+	return string(newBytes), penaltyRemoved, interestRemoved, totalRemoved, nil
+}
+
+func RemoveAssessmentPenaltyInterest(
+	ctx context.Context,
+	cfg *Config,
+	assessmentNumber string,
+	dryRun bool,
+	userID, userName string,
+) (*ReconciliationItemResult, error) {
+	if strings.TrimSpace(assessmentNumber) == "" {
+		return nil, fmt.Errorf("assessment number is required")
+	}
+
+	var assessment Assessment
+	if err := cfg.AssessmentDB.WithContext(ctx).
+		Where(`"assessmentNo" = ?`, assessmentNumber).
+		First(&assessment).Error; err != nil {
+		return nil, fmt.Errorf("assessment %s not found: %w", assessmentNumber, err)
+	}
+
+	newLiabilityJSON, pRemoved, iRemoved, totalRemoved, err := RemovePenaltyAndInterest(assessment.TaxLiability)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process tax liabilities for %s: %w", assessmentNumber, err)
+	}
+
+	if !dryRun {
+		updates := map[string]interface{}{
+			"taxLiability": newLiabilityJSON,
+			"sip":          true,
+		}
+		if err := cfg.AssessmentDB.WithContext(ctx).Model(&Assessment{}).
+			Where(`"assessmentNo" = ?`, assessmentNumber).
+			Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("failed to update assessment %s: %w", assessmentNumber, err)
+		}
+	}
+
+	msg := fmt.Sprintf("Penalty (%.2f) and Interest (%.2f) removed successfully; total removed: %.2f (SIP=true)", pRemoved, iRemoved, totalRemoved)
+	if dryRun {
+		msg = fmt.Sprintf("[DRY RUN] Penalty (%.2f) and Interest (%.2f) would be removed; total: %.2f (SIP=true)", pRemoved, iRemoved, totalRemoved)
+	}
+
+	return &ReconciliationItemResult{
+		AssessmentNumber: assessmentNumber,
+		Status:           "SUCCESS",
+		Message:          msg,
+		ReconciledAmount: totalRemoved,
+	}, nil
+}
+
+func RevertAssessmentPenaltyInterest(
+	ctx context.Context,
+	cfg *Config,
+	assessmentNumber string,
+	dryRun bool,
+	userID, userName string,
+) (*ReconciliationItemResult, error) {
+	if strings.TrimSpace(assessmentNumber) == "" {
+		return nil, fmt.Errorf("assessment number is required")
+	}
+
+	var assessment Assessment
+	if err := cfg.AssessmentDB.WithContext(ctx).
+		Where(`"assessmentNo" = ?`, assessmentNumber).
+		First(&assessment).Error; err != nil {
+		return nil, fmt.Errorf("assessment %s not found: %w", assessmentNumber, err)
+	}
+
+	if !dryRun {
+		updates := map[string]interface{}{
+			"sip": false,
+		}
+		if err := cfg.AssessmentDB.WithContext(ctx).Model(&Assessment{}).
+			Where(`"assessmentNo" = ?`, assessmentNumber).
+			Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("failed to revert assessment %s: %w", assessmentNumber, err)
+		}
+	}
+
+	msg := "Penalty and interest reverted successfully (SIP=false)"
+	if dryRun {
+		msg = "[DRY RUN] Penalty and interest would be reverted (SIP=false)"
+	}
+
+	return &ReconciliationItemResult{
+		AssessmentNumber: assessmentNumber,
+		Status:           "SUCCESS",
+		Message:          msg,
+		ReconciledAmount: 0.00,
+	}, nil
+}
+
+func ProcessStaffPenaltyInterest(
+	ctx context.Context,
+	cfg *Config,
+	assessmentNumber string,
+	add bool,
+	dryRun bool,
+	userID, userName string,
+) (*ReconciliationItemResult, error) {
+	if add {
+		return RemoveAssessmentPenaltyInterest(ctx, cfg, assessmentNumber, dryRun, userID, userName)
+	}
+	return RevertAssessmentPenaltyInterest(ctx, cfg, assessmentNumber, dryRun, userID, userName)
 }
