@@ -214,17 +214,7 @@ func UpdatePaymentPenaltyInterest(
 	})
 
 	if err != nil {
-		cfg.PaymentDB.Create(&LegacyReconciliationLog{
-			AssessmentNumber: assessmentNumber,
-			PaymentReference: paymentRef,
-			BankReference:    bankRef,
-			UserID:           userID,
-			UserName:         userName,
-			Status:           "FAILED",
-			Message:          err.Error(),
-			Amount:           0.00,
-			CreatedAt:        time.Now().UTC(),
-		})
+
 		return &ReconciliationItemResult{
 			AssessmentNumber: assessmentNumber,
 			Status:           "FAILED",

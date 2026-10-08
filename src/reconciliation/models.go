@@ -160,24 +160,6 @@ func (PaymentData) TableName() string {
 }
 
 // LegacyReconciliationLog maps to 'tbl_legacy_payment_reconciliation_logs' in Payment DB.
-type LegacyReconciliationLog struct {
-	ID               uint      `gorm:"column:id;primaryKey;autoIncrement"`
-	AssessmentNumber string    `gorm:"column:assessment_number"`
-	PaymentReference string    `gorm:"column:payment_reference"`
-	BankReference    string    `gorm:"column:bank_reference"`
-	OfficeID         string    `gorm:"column:office_id"`
-	StateID          string    `gorm:"column:state_id"`
-	UserID           string    `gorm:"column:user_id"`
-	UserName         string    `gorm:"column:user_name"`
-	Status           string    `gorm:"column:status"`
-	Message          string    `gorm:"column:message"`
-	Amount           float64   `gorm:"column:amount"`
-	CreatedAt        time.Time `gorm:"column:created_at"`
-}
-
-func (LegacyReconciliationLog) TableName() string {
-	return "tbl_legacy_payment_reconciliation_logs"
-}
 
 // AuditLog maps to 'audit_logs' in the Central Audit DB.
 type AuditLog struct {

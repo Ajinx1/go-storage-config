@@ -746,19 +746,6 @@ func ReconcileSingleAssessment(
 
 	if err != nil {
 
-		cfg.PaymentDB.Create(&LegacyReconciliationLog{
-			AssessmentNumber: assessmentNumber,
-			PaymentReference: paymentRef,
-			BankReference:    bankRef,
-			OfficeID:         input.OfficeID,
-			StateID:          input.StateID,
-			UserID:           input.UserID,
-			UserName:         input.UserName,
-			Status:           "FAILED",
-			Message:          err.Error(),
-			Amount:           input.Amount,
-			CreatedAt:        time.Now().UTC(),
-		})
 		return &ReconciliationItemResult{
 			AssessmentNumber: assessmentNumber,
 			PaymentReference: paymentRef,
@@ -767,21 +754,6 @@ func ReconcileSingleAssessment(
 			Message:          err.Error(),
 		}, err
 	}
-
-	// Log SUCCESS in Payment DB
-	cfg.PaymentDB.Create(&LegacyReconciliationLog{
-		AssessmentNumber: assessmentNumber,
-		PaymentReference: paymentRef,
-		BankReference:    bankRef,
-		OfficeID:         input.OfficeID,
-		StateID:          input.StateID,
-		UserID:           input.UserID,
-		UserName:         input.UserName,
-		Status:           "SUCCESS",
-		Message:          "legacy reconciliation completed successfully",
-		Amount:           reconciledAmount,
-		CreatedAt:        time.Now().UTC(),
-	})
 
 	return &ReconciliationItemResult{
 		AssessmentNumber: assessmentNumber,
