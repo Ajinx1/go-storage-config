@@ -539,7 +539,6 @@ func ReconcileSingleAssessment(
 			parsedPaymentDate = &now
 		}
 
-		// Update Assessment record in DB
 		if err := tx.Model(&assessment).Updates(map[string]interface{}{
 			"taxLiability":     updatedLiability,
 			"paymentStatus":    paymentStatus,
@@ -550,7 +549,6 @@ func ReconcileSingleAssessment(
 			return fmt.Errorf("failed to update assessment status: %w", err)
 		}
 
-		// Generate Receipt Number
 		receiptPrefix := "LGY"
 		if input.WritePaymentRecord {
 			receiptPrefix = "RCP"
@@ -561,7 +559,6 @@ func ReconcileSingleAssessment(
 		}
 		receiptNumber = rcpNum
 
-		// Insert Collection records
 		for _, it := range paymentItems {
 			if it.Amount <= 0 {
 				continue
@@ -589,7 +586,6 @@ func ReconcileSingleAssessment(
 			}
 		}
 
-		// Insert Payment Data into Payment DB if requested
 		if input.WritePaymentRecord {
 			metaDataJSON, _ := json.Marshal(map[string]interface{}{
 				"bank":      "paystack titan",

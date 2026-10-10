@@ -67,8 +67,8 @@ func (e *Engine) ReconcileBatch(ctx context.Context, req BatchReconcileRequest) 
 	}
 
 	reqType := req.GetType()
-	if reqType != "" && reqType != "staff" && reqType != "office" {
-		return nil, fmt.Errorf("invalid the_type '%s': must be 'staff' or 'office'", reqType)
+	if reqType != "" && reqType != "staff" && reqType != "office" && reqType != "state" {
+		return nil, fmt.Errorf("invalid the_type '%s': must be 'staff', 'office', or 'state'", reqType)
 	}
 
 	response := &BatchReconcileResponse{
@@ -94,6 +94,25 @@ func (e *Engine) ReconcileBatch(ctx context.Context, req BatchReconcileRequest) 
 		if reqType == "staff" {
 			isAdd := req.IsAdd()
 			res, err := ProcessStaffPenaltyInterest(ctx, &e.cfg, asmClean, isAdd, req.DryRun, userID, userName)
+			if err != nil {
+				response.TotalFailed++
+				response.Results = append(response.Results, ReconciliationItemResult{
+					AssessmentNumber: asmClean,
+					Status:           "FAILED",
+					Message:          err.Error(),
+				})
+			} else {
+				response.TotalSuccessful++
+				response.TotalAmountReconciled += res.ReconciledAmount
+				response.Results = append(response.Results, *res)
+			}
+			continue
+		}
+
+		if reqType == "state" {
+			isAdd := req.IsAdd()
+			taxTypes := req.GetTaxTypes()
+			res, err := ProcessStateTaxLedger(ctx, &e.cfg, asmClean, taxTypes, isAdd, req.DryRun)
 			if err != nil {
 				response.TotalFailed++
 				response.Results = append(response.Results, ReconciliationItemResult{

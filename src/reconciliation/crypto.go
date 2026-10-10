@@ -14,7 +14,6 @@ import (
 	"strings"
 )
 
-// HashText computes SHA-256 hex string of trimmed text.
 func HashText(text string) string {
 	if text == "" {
 		return ""
@@ -24,24 +23,20 @@ func HashText(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// HashTIN computes SHA-256 hex string of TIN.
 func HashTIN(tin string) string {
 	return HashText(tin)
 }
 
-// HashAssessmentNo computes SHA-256 hex string of assessment number.
 func HashAssessmentNo(assessmentNo string) string {
 	return HashText(assessmentNo)
 }
 
-// pkcs7Pad applies standard PKCS7 padding.
 func pkcs7Pad(data []byte, blockSize int) []byte {
 	padding := blockSize - (len(data) % blockSize)
 	padText := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(data, padText...)
 }
 
-// pkcs7Unpad removes standard PKCS7 padding.
 func pkcs7Unpad(data []byte, blockSize int) ([]byte, error) {
 	length := len(data)
 	if length == 0 || length%blockSize != 0 {
@@ -59,7 +54,6 @@ func pkcs7Unpad(data []byte, blockSize int) ([]byte, error) {
 	return data[:length-padding], nil
 }
 
-// Encrypt encrypts plaintext using AES-CBC with PKCS7 padding, matching Python's iv_hex:cipher_hex format.
 func Encrypt(plainText, keyHex string) (string, error) {
 	if plainText == "" {
 		return "", nil
@@ -92,7 +86,6 @@ func Encrypt(plainText, keyHex string) (string, error) {
 	return hex.EncodeToString(iv) + ":" + hex.EncodeToString(ciphertext), nil
 }
 
-// Decrypt decrypts iv_hex:cipher_hex formatted text using AES-CBC with PKCS7 unpadding.
 func Decrypt(encryptedText, keyHex string) (string, error) {
 	if encryptedText == "" {
 		return "", nil
@@ -141,7 +134,6 @@ func Decrypt(encryptedText, keyHex string) (string, error) {
 	return string(unpadded), nil
 }
 
-// GeneratePaymentSignature creates HMAC-SHA256 signature matching Python's generate_payment_signature.
 func GeneratePaymentSignature(
 	receiptNumber, assessmentNumber string,
 	amount float64,

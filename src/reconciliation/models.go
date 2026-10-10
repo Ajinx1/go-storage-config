@@ -60,6 +60,7 @@ type TaxLedger struct {
 	Currency                  string    `gorm:"column:currency"`
 	Type                      string    `gorm:"column:type"` // "DR" or "CR"
 	PaymentMethod             string    `gorm:"column:payment_method"`
+	IsActive                  bool      `gorm:"column:isActive"`
 }
 
 func (TaxLedger) TableName() string {
@@ -238,6 +239,8 @@ type BatchReconcileRequest struct {
 	WritePaymentRecord    *bool     `json:"write_payment_record,omitempty"`
 	UpdatePenaltyInterest bool      `json:"update_penalty_interest,omitempty"`
 	BankRefMode           string    `json:"bank_ref_mode,omitempty"`
+	TaxTypes              []string  `json:"tax_types,omitempty"`
+	TaxType               []string  `json:"tax_type,omitempty"`
 }
 
 func (r *BatchReconcileRequest) GetType() string {
@@ -253,6 +256,13 @@ func (r *BatchReconcileRequest) IsAdd() bool {
 		return true
 	}
 	return *r.Add
+}
+
+func (r *BatchReconcileRequest) GetTaxTypes() []string {
+	if len(r.TaxTypes) > 0 {
+		return r.TaxTypes
+	}
+	return r.TaxType
 }
 
 type ReconciliationItemResult struct {
