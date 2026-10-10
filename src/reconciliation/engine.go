@@ -128,8 +128,8 @@ func (e *Engine) ReconcileBatch(ctx context.Context, req BatchReconcileRequest) 
 			continue
 		}
 
-		if req.UpdatePenaltyInterest {
-			res, err := UpdatePaymentPenaltyInterest(ctx, &e.cfg, asmClean, userID, userName)
+		if req.UpdateP {
+			res, err := UpdatePaymentP(ctx, &e.cfg, asmClean, userID, userName)
 			if err != nil {
 				response.TotalFailed++
 				response.Results = append(response.Results, ReconciliationItemResult{

@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func UpdatePaymentPenaltyInterest(
+func UpdatePaymentP(
 	ctx context.Context,
 	cfg *Config,
 	assessmentNumber string,

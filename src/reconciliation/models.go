@@ -222,25 +222,25 @@ type Config struct {
 // Request & Response DTOs
 
 type BatchReconcileRequest struct {
-	TheType               string    `json:"the_type,omitempty"`
-	Type                  string    `json:"type,omitempty"`
-	Add                   *bool     `json:"add,omitempty"`
-	DryRun                bool      `json:"dry_run,omitempty"`
-	AssessmentNumbers     []string  `json:"assessment_numbers"`
-	PaymentReferences     []string  `json:"payment_references,omitempty"`
-	BankReferences        []string  `json:"bank_references,omitempty"`
-	PaymentChannels       []string  `json:"payment_channels,omitempty"`
-	PaymentDates          []string  `json:"payment_dates,omitempty"`
-	Amounts               []float64 `json:"amounts,omitempty"`
-	OfficeIDs             []string  `json:"office_ids,omitempty"`
-	StateIDs              []string  `json:"state_ids,omitempty"`
-	UserIDs               []string  `json:"user_ids,omitempty"`
-	UserNames             []string  `json:"user_names,omitempty"`
-	WritePaymentRecord    *bool     `json:"write_payment_record,omitempty"`
-	UpdatePenaltyInterest bool      `json:"update_penalty_interest,omitempty"`
-	BankRefMode           string    `json:"bank_ref_mode,omitempty"`
-	TaxTypes              []string  `json:"tax_types,omitempty"`
-	TaxType               []string  `json:"tax_type,omitempty"`
+	TheType            string    `json:"the_type,omitempty"`
+	Type               string    `json:"type,omitempty"`
+	Add                *bool     `json:"add,omitempty"`
+	DryRun             bool      `json:"dry_run,omitempty"`
+	AssessmentNumbers  []string  `json:"assessment_numbers"`
+	PaymentReferences  []string  `json:"payment_references,omitempty"`
+	BankReferences     []string  `json:"bank_references,omitempty"`
+	PaymentChannels    []string  `json:"payment_channels,omitempty"`
+	PaymentDates       []string  `json:"payment_dates,omitempty"`
+	Amounts            []float64 `json:"amounts,omitempty"`
+	OfficeIDs          []string  `json:"office_ids,omitempty"`
+	StateIDs           []string  `json:"state_ids,omitempty"`
+	UserIDs            []string  `json:"user_ids,omitempty"`
+	UserNames          []string  `json:"user_names,omitempty"`
+	WritePaymentRecord *bool     `json:"write_payment_record,omitempty"`
+	UpdateP            bool      `json:"update_p,omitempty"`
+	BankRefMode        string    `json:"bank_ref_mode,omitempty"`
+	TaxTypes           []string  `json:"tax_types,omitempty"`
+	TaxType            []string  `json:"tax_type,omitempty"`
 }
 
 func (r *BatchReconcileRequest) GetType() string {
