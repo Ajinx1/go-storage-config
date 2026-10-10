@@ -153,6 +153,8 @@ type PaymentData struct {
 	PsspReferenceNumber string     `gorm:"column:pssp_reference_number"`
 	SettlementStatus    string     `gorm:"column:settlement_status"`
 	Signature           string     `gorm:"column:signature"`
+	CreatedAt           time.Time  `gorm:"column:created_at"`
+	UpdatedAt           time.Time  `gorm:"column:updated_at"`
 }
 
 func (PaymentData) TableName() string {

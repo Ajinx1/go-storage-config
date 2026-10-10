@@ -648,6 +648,8 @@ func ReconcileSingleAssessment(
 				PsspReferenceNumber: bankRef,
 				SettlementStatus:    "COMPLETED",
 				Signature:           sig,
+				CreatedAt:           time.Now().UTC(),
+				UpdatedAt:           time.Now().UTC(),
 			}
 
 			if err := cfg.PaymentDB.Clauses(clause.OnConflict{DoNothing: true}).Create(&paymentDataRecord).Error; err != nil {
